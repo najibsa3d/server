@@ -6,6 +6,7 @@ queue *create(int size){
     if(!this){
         return NULL;
     }
+
     this->maxSize = size;
     this->currentSize = 0;
 

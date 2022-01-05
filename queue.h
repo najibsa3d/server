@@ -9,8 +9,9 @@
 
 
 typedef struct queueNode_t {
-    pthread_t id;
+    pthread_t threadID;
     struct timeval arrivalTime;
+    struct timeval dispatchTime;
     int connection;
 } queueNode;
 

@@ -152,7 +152,7 @@ void requestServeStatic(int fd, char *filename, int filesize)
 }
 
 // handle a request
-void requestHandle(int fd)
+int requestHandle(int fd)
 {
 
    int is_static;
@@ -185,13 +185,16 @@ void requestHandle(int fd)
          return;
       }
       requestServeStatic(fd, filename, sbuf.st_size);
+      return 1;
    } else {
       if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
          requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not run this CGI program");
          return;
       }
       requestServeDynamic(fd, filename, cgiargs);
+      return 0;
    }
 }
+
 
 

@@ -37,9 +37,26 @@ enum QueueType {
     WAITING_QUEUE,
     RUNNING_QUEUE
 };
-
+typedef struct stat_t {
+    int threadId;
+    int requestCount;
+    int staticCount;
+    int dynamicCount;
+} Stats;
+Stats* create_stat(int threadId){
+    Stats* s = malloc(sizeof(s));
+    s->staticCount = 0;
+    s->threadId = threadId;
+    s->dynamicCount = 0;
+    s->requestCount = 0;
+    return s;
+}
+pthread_mutex_t m;
+Stats *threadsPool;
+int* threadCount;
 queue *waitingQueue;
 queue *runningQueue;
+int workers;
 
 int queueSize;          //size of the maximal requests (passed as an argument by the user)
 
@@ -49,12 +66,29 @@ void *workerRoutine(void* args) {
     while (1) {
 
         queueNode *request = popQueue(waitingQueue);
-        request->id = pthread_self();
+        request->threadID = pthread_self();
+        pthread_mutex_lock(&m,NULL);
+        int i=0;
+        for(i =0; i < workers; i++){
+            if(request->threadID == threadsPool[i].threadId){
+                threadsPool[i].requestCount++;
+                break;
+            }
+        }
 
+
+        struct timeval dispatchTime;
+        gettimeofday(&dispatchTime, NULL);
+        request->dispatchTime = dispatchTime;
         pushQueue(runningQueue, *request);
 
-        requestHandle(request->connection);
+        if(requestHandle(request->connection) == 0)
+            threadsPool[i].dynamicCount++;
+        else
+            threadsPool[i].staticCount++;
         close(request->connection);
+
+        pthread_mutex_unlock(&m,NULL);
 
         popNodeQueue(runningQueue, *request);
         break; //todo: delete this line
@@ -65,20 +99,6 @@ void *workerRoutine(void* args) {
 bool canBeInserted() {
     return waitingQueue->currentSize + runningQueue->currentSize < queueSize;
 }
-
-void blockPolicy(int connfd){ //todo: make sure the correct condition and mutex are listened
-    while(!canBeInserted()){
-        pthread_cond_wait(&waitingQueue->fullCond, &waitingQueue->mutex);
-    }
-    queueNode request;
-    request.connection = connfd;
-    struct timeval arrivalTime;
-    gettimeofday(&arrivalTime, NULL);
-    request.arrivalTime = arrivalTime;
-    pushQueue(waitingQueue, request);
-    pthread_cond_signal(&waitingQueue->emptyCond);
-}
-
 void addRequestToWaitingQueue(int connfd){
     queueNode request;
 
@@ -90,6 +110,15 @@ void addRequestToWaitingQueue(int connfd){
 
     pushQueue(waitingQueue, request);
 }
+void blockPolicy(int connfd){ //todo: make sure the correct condition and mutex are listened
+    while(!canBeInserted()){
+        pthread_cond_wait(&waitingQueue->fullCond, &waitingQueue->mutex);
+    }
+    addRequestToWaitingQueue(connfd);
+    pthread_cond_signal(&waitingQueue->emptyCond);
+}
+
+
 
 void dropHeadPolicy(int connfd){
     while(waitingQueue->currentSize == 0 && !canBeInserted()){
@@ -124,7 +153,7 @@ void dropRandomPolicy(int connfd){
 
     time_t t;
     srand((unsigned) time(&t));
-    int n = waitingQueue->currentSize / 2;
+    int n = ceil(waitingQueue->currentSize / 2);
 
     for(int i = 0; i < n; i++){
         removeAtIndexQueue(waitingQueue, rand() % waitingQueue->currentSize);
@@ -137,9 +166,11 @@ void dropRandomPolicy(int connfd){
 int main(int argc, char *argv[]) {
     int listenfd, connfd, clientlen;
     int port;
-    int workers;
+
     char *schedalg;
     struct sockaddr_in clientaddr;
+
+    pthread_mutex_init(&m);
 
     getargs(&port, &workers, &queueSize, &schedalg, argc, argv);
 
@@ -167,14 +198,17 @@ int main(int argc, char *argv[]) {
     //todo: allocation error handling
 
     //creating the pool of workers
-    pthread_t *threadsPool = (pthread_t *) malloc(sizeof(pthread_t) * workers);
+    threadsPool = (Stats *) malloc(sizeof(Stats) * workers);
     for (int i = 0; i < workers; ++i) {
-        int *id = malloc(sizeof(int));
-        *id = i;
-        if (pthread_create(&threadsPool[i], NULL, workerRoutine, id) != SUCCESS) {
+        pthread_t t;
+        threadsPool[i] = create_stat(i);
+
+
+        if (pthread_create(&t NULL, workerRoutine, id) != SUCCESS) {
             //todo: error handling
             exit(1);
         }
+        threadsPool[i] = create_stat(t);
     }
     listenfd = Open_listenfd(port);
     while (1) {
@@ -204,8 +238,6 @@ int main(int argc, char *argv[]) {
                     break;
             }
         }
-
-        //requestHandle(connfd);
         break; // todo: remove this line
         Close(connfd);
     }
