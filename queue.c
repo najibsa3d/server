@@ -37,6 +37,18 @@ int pushQueue(queue* q, queueNode node){
     return 0;
 }
 
+void popNodeQueue(queue* q, queueNode node){
+    if(!q)
+        return;
+
+    for(int i = 0; i < q->currentSize; i++){
+        if(q->nodes[i]->connection == node.connection){
+            removeAtIndexQueue(q, i);
+            return;
+        }
+    }
+}
+
 queueNode* popQueue(queue* q){
     if(!q)
         return NULL;

@@ -43,9 +43,20 @@ queue *runningQueue;
 
 int queueSize;          //size of the maximal requests (passed as an argument by the user)
 
-void *workerRoutine() {
+void *workerRoutine(void* args) {
+    int id = *((int*)args);
+
     while (1) {
+
         queueNode *request = popQueue(waitingQueue);
+        request->id = pthread_self();
+
+        pushQueue(runningQueue, *request);
+
+        requestHandle(request->connection);
+        close(request->connection);
+
+        popNodeQueue(runningQueue, *request);
         break; //todo: delete this line
     }
     return NULL;
@@ -138,7 +149,7 @@ int main(int argc, char *argv[]) {
         policy = SCHPOL_BLOCK;
     } else if (strcmp(schedalg, "dh") == SUCCESS) {
         policy = SCHPOL_HEAD;
-    } else if (strcmp(schedalg, "drop_random") == SUCCESS) {
+    } else if (strcmp(schedalg, "random") == SUCCESS) {
         policy = SCHPOL_RANDOM;
     } else if (strcmp(schedalg, "dt") == SUCCESS) {
         policy = SCHPOL_TAIL;
@@ -170,11 +181,6 @@ int main(int argc, char *argv[]) {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
 
-        //
-        // HW3: In general, don't handle the request in the main thread.
-        // Save the relevant info in a buffer and have one of the worker threads
-        // do the work.
-        //
         queueNode request;
         request.connection = connfd;
         gettimeofday(&request.arrivalTime, NULL);
@@ -199,7 +205,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        requestHandle(connfd);
+        //requestHandle(connfd);
         break; // todo: remove this line
         Close(connfd);
     }

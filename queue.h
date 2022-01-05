@@ -26,6 +26,7 @@ typedef struct Queue_t{
 queue *create(int size);
 int pushQueue(queue* q, queueNode node);
 queueNode* popQueue(queue* q);
+void popNodeQueue(queue* q, queueNode node);
 void queueDestroy(queue* q);
 int removeAtIndexQueue(queue* q, int index);
 
