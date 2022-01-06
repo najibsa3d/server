@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 queue *create(int size){
-    queue *this = malloc(sizeof(queue));
+    queue *this = malloc(sizeof(*this));
     if(!this){
         return NULL;
     }
@@ -10,12 +10,16 @@ queue *create(int size){
     this->maxSize = size;
     this->currentSize = 0;
 
-    queueNode *nodes = malloc(sizeof(queueNode) * size);
+    /*queueNode *nodes = malloc(sizeof(queueNode) * size);
     if(!nodes){
         free(this);
         return NULL;
+    }*/
+    this->nodes = malloc(sizeof(queueNode*)* size);
+    for(int i =0; i < size ; i++){
+        this->nodes[i] = malloc(sizeof(queueNode));
+        //TODO : Fail malloc.
     }
-    *this->nodes = nodes;
 
     pthread_mutex_init(&this->mutex, NULL);
     pthread_cond_init(&this->fullCond, NULL);
