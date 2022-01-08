@@ -74,6 +74,7 @@ void *workerRoutine(void *args) {
         for (i = 0; i < workers; i++) {
             if (request->threadID == threadsPool[i]->threadId) {
                 threadsPool[i]->requestCount++;
+                threadsPool[i]->threadId = i;
                 break;
             }
         }
@@ -82,7 +83,14 @@ void *workerRoutine(void *args) {
         gettimeofday(&dispatchTime, NULL);
         request->dispatchTime = dispatchTime;
         pushQueue(runningQueue, *request);
-        int res = requestHandle(request->connection);
+        Stats* stat = malloc(sizeof(Stats));
+        stat->threadId = threadsPool[i]->threadId;
+        stat->dispatchTime = dispatchTime;
+        stat->arrivalTime = request->arrivalTime;
+        stat->requestCount = threadsPool[i]->requestCount;
+        stat->staticCount = threadsPool[i]->staticCount;
+        stat->dynamicCount = threadsPool[i]->dynamicCount;
+        int res = requestHandle(request->connection,stat);
         if (res == 0)
             threadsPool[i]->dynamicCount++;
         else if (res == 1)

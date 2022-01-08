@@ -5,7 +5,9 @@ typedef struct stat_t {
     int requestCount;
     int staticCount;
     int dynamicCount;
+    struct timeval arrivalTime;
+    struct timeval dispatchTime;
 } Stats;
-int requestHandle(int fd,Stats stats);
+int requestHandle(int fd,Stats* stats);
 
 #endif
