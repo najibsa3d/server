@@ -1,5 +1,11 @@
 #ifndef __REQUEST_H__
 
-int requestHandle(int fd);
+typedef struct stat_t {
+    pthread_t threadId;
+    int requestCount;
+    int staticCount;
+    int dynamicCount;
+} Stats;
+int requestHandle(int fd,Stats stats);
 
 #endif

@@ -38,12 +38,7 @@ enum QueueType {
     WAITING_QUEUE,
     RUNNING_QUEUE
 };
-typedef struct stat_t {
-    pthread_t threadId;
-    int requestCount;
-    int staticCount;
-    int dynamicCount;
-} Stats;
+
 
 Stats *create_stat(pthread_t threadId) {
     Stats *s = malloc(sizeof(Stats));
@@ -69,8 +64,8 @@ int queueSize;          //size of the maximal requests (passed as an argument by
 void *workerRoutine(void *args) {
 
     //int id = *((int*)args);
-    int x = pthread_self();
-    fprintf(stderr,"%d\n",x);
+//    /int x = pthread_self();
+    //fprintf(stderr,"%d\n",x);
     while (1) {
         queueNode *request = popQueue(waitingQueue);
         request->threadID = pthread_self();
@@ -171,7 +166,7 @@ void dropRandomPolicy(int connfd) {
 
 
 int main(int argc, char *argv[]) {
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     int listenfd, connfd, clientlen;
     int port;
 
@@ -181,7 +176,7 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&m, NULL);
 
     getargs(&port, &workers, &queueSize, &schedalg, argc, argv);
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     enum SchedalgPolicy policy;
     //todo: correct naming
     if (strcmp(schedalg, "block") == SUCCESS) {
@@ -197,21 +192,21 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     //initializing the queues
     waitingQueue = (queue *) malloc(sizeof(queue));
     runningQueue = (queue *) malloc(sizeof(queue));
     waitingQueue = create(queueSize);
     runningQueue = create(queueSize);
     //todo: allocation error handling
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     //creating the pool of workers
     threadsPool = (Stats **) malloc(sizeof(Stats *) * workers);
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     for (int i = 0; i < workers; ++i) {
         pthread_t t;
         pthread_create(&t, NULL, workerRoutine, NULL);
-        fprintf(stderr,"X%d\n",t);
+        //fprintf(stderr,"X%d\n",t);
 
 
         /*if (pthread_create(&t, NULL, workerRoutine, id) != SUCCESS) {
@@ -220,17 +215,17 @@ int main(int argc, char *argv[]) {
         }*/
         threadsPool[i] = create_stat(t);
     }
-    fprintf(stderr,"1");
+    //fprintf(stderr,"1");
     listenfd = Open_listenfd(port);
     while (1) {
         clientlen = sizeof(clientaddr);
-        fprintf(stderr,"5\n");
+        //fprintf(stderr,"5\n");
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t * ) & clientlen);
-        fprintf(stderr,"6");
+        //fprintf(stderr,"6");
         queueNode request;
         request.connection = connfd;
         gettimeofday(&request.arrivalTime, NULL);
-        fprintf(stderr,"7");
+        //fprintf(stderr,"7");
 
         if (canBeInserted()) {
             pushQueue(waitingQueue, request);
@@ -250,9 +245,9 @@ int main(int argc, char *argv[]) {
                     break;
             }
         }
-        Close(connfd);
-        fprintf(stderr,"2");
+        //fprintf(stderr,"2");
     }
+    Close(connfd);
 
 }
 
