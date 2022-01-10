@@ -28,8 +28,11 @@ typedef struct Queue_t{
 queue *create(int size);
 int pushQueue(queue* q, queueNode node);
 queueNode* popQueue(queue* q);
+queueNode* popQueueTail(queue* q);
+
 void popNodeQueue(queue* q, queueNode node);
 void queueDestroy(queue* q);
 int removeAtIndexQueue(queue* q, int index);
+void queueNodeDestroy(queueNode* node);
 
 #endif //OS_HW3_QUEUE_H

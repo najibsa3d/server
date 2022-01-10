@@ -2,9 +2,10 @@
 
 typedef struct stat_t {
     pthread_t threadId;
+    int index;
     int requestCount;
-    int staticCount;
-    int dynamicCount;
+    int* staticCount;
+    int* dynamicCount;
     struct timeval arrivalTime;
     struct timeval dispatchTime;
 } Stats;
