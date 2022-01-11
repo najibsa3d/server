@@ -176,30 +176,38 @@ int requestHandle(int fd, Stats* stats) {
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char filename[MAXLINE], cgiargs[MAXLINE];
     rio_t rio;
+    fprintf(stderr, "sizzzzzzzzzzz %d\n", fd);
+    Rio_readinitb(&rio, 1);
+    fprintf(stderr, "fd : %d\n",fd);
 
-    Rio_readinitb(&rio, fd);
+    fprintf(stderr, "sizzzzzzzz111zz222224442z\n");
     Rio_readlineb(&rio, buf, MAXLINE);
+    fprintf(stderr, "sizzzzzzzz111zz222z\n");
     sscanf(buf, "%s %s %s", method, uri, version);
 
     printf("%s %s %s\n", method, uri, version);
+    fprintf(stderr, "sizzzzzzzz111zzz\n");
 
     if (strcasecmp(method, "GET")) {
         requestError(fd, method, "501", "Not Implemented", "OS-HW3 Server does not implement this method", stats);
         return -1;
     }
     requestReadhdrs(&rio);
+    fprintf(stderr, "sizzzzzzz2222zzzz\n");
 
     is_static = requestParseURI(uri, filename, cgiargs);
     if (stat(filename, &sbuf) < 0) {
         requestError(fd, filename, "404", "Not found", "OS-HW3 Server could not find this file", stats);
         return -1;
     }
+    fprintf(stderr, "sizzzzzzz3333zzzz\n");
 
     if (is_static) {
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
             requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not read this file", stats);
             return -1;
         }
+        fprintf(stderr, "sizzzzzz44444zzzzz\n");
         *stats->staticCount = *stats->staticCount+1;
         requestServeStatic(fd, filename, sbuf.st_size, stats);
         return 1;
@@ -208,6 +216,7 @@ int requestHandle(int fd, Stats* stats) {
             requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not run this CGI program", stats);
             return -1;
         }
+        fprintf(stderr, "sizzzzzz55555zzzzz\n");
         *stats->dynamicCount= *stats->dynamicCount+1;
         requestServeDynamic(fd, filename, cgiargs, stats);
         return 0;

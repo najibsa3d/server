@@ -3,4 +3,4 @@ project(OS_hw3)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(OS_hw3 main.cpp server.c segel.c request.c client.c output.c queue.c queue.h)
+add_executable(OS_hw3 main.cpp server.c segel.c request.c client.c output.c list.c list.h)

@@ -363,7 +363,7 @@ static ssize_t rio_read(rio_t *rp, char *usrbuf, size_t n)
 void rio_readinitb(rio_t *rp, int fd) 
 {
     rp->rio_fd = fd;  
-    rp->rio_cnt = 0;  
+    rp->rio_cnt = 0;
     rp->rio_bufptr = rp->rio_buf;
 }
 /* $end rio_readinitb */
@@ -456,9 +456,11 @@ ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n)
 ssize_t Rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen) 
 {
     ssize_t rc;
+    fprintf(stderr, "aaaaarrrrrrrrrrr");
 
     if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0)
         unix_error("Rio_readlineb error");
+
     return rc;
 } 
 
