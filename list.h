@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 
+
 typedef struct LinkedListNode_t {
     pthread_t threadID;
     struct timeval arrivalTime;

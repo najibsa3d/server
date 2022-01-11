@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "list.h"
 #include "assert.h"
+#include <unistd.h>
 #include "stdbool.h"
 #define SUCCESS 0
 // 
@@ -24,7 +25,7 @@ LinkedList* waitingList;
 Stats** threads;
 
 
-bool debug = true;
+bool debug = false;
 
 /*
  * TODO:
@@ -72,61 +73,97 @@ void *workerRoutine(void *args) {
 
     while(1) {
         if(debug) fprintf(stderr, "SEXSEX11\n");
-
-        pthread_mutex_lock(&mutex);
-        while (waitingList->size == 0)
-            pthread_cond_wait(&waitingList->emptyCond, &mutex);
-        if(debug) fprintf(stderr, "SEXSEX22\n");
+        fprintf(stderr, "%ld lock 1\n", pthread_self());
 
         pthread_mutex_lock(&waitingList->listMutex);
+        if(debug) fprintf(stderr, "SEXSEX1166, %ld\n", pthread_self());
+        while (waitingList->size == 0) {
+            fprintf(stderr, "thread %ld is waiting\n", pthread_self());
+            pthread_cond_wait(&waitingList->emptyCond, &waitingList->listMutex);
+
+        }
+        fprintf(stderr, "%ld here1\n", pthread_self());
+        if(debug) fprintf(stderr, "SEXSEX22\n");
+        fprintf(stderr, "%ld lock 2\n", pthread_self());
+
         LinkedListNode *request = popHeadList(waitingList);
         if(debug) fprintf(stderr, "SEXSEX99\n");
+        fprintf(stderr, "%ld unlock 2\n", pthread_self());
+
         pthread_mutex_unlock(&waitingList->listMutex);
-        pthread_mutex_unlock(&mutex);
+        fprintf(stderr, "%ld unlock 1\n", pthread_self());
         if(debug) fprintf(stderr, "SEXSEX33\n");
 
         request->threadID = pthread_self();
+        int i =0;
+        for (i = 0; i <workers ; ++i) {
+            if(threads[i]->threadId == request->threadID){
+                break;
+            }
+        }
+
         //lock
-        int i = *((int*)args);
-        free(args);
+        /*int i = *((int*)args);
+        free(args);*/
 
         if(debug) fprintf(stderr, "SEXSE444\n");
+        fprintf(stderr, "%ld lock 3\n", pthread_self());
+
         pthread_mutex_lock(&mutex);
         threads[i]->requestCount++;
         threads[i]->arrivalTime = request->arrivalTime;
         gettimeofday(&threads[i]->dispatchTime, NULL);
         if(debug) fprintf(stderr, "SEXSE444444\n");
+        fprintf(stderr, "%ld unlock 3\n", pthread_self());
+
         pthread_mutex_unlock(&mutex);
+        fprintf(stderr, "%ld lock 4\n", pthread_self());
+
         pthread_mutex_lock(&runningList->listMutex);
         pushList(runningList, request->connection);
-
+        fprintf(stderr, "running cond: %d, waiting cond: %d\n", &runningList->emptyCond, &waitingList->emptyCond);
         Stats *tempThread = threads[i];
+        fprintf(stderr, "%ld unlock 4\n", pthread_self());
 
         pthread_mutex_unlock(&runningList->listMutex);
 
 
         if(debug) fprintf(stderr, "%d, %ld, %d, >>>>>>>\n", tempThread->index, tempThread->threadId, request->connection);
         requestHandle(request->connection, tempThread);
+        close(request->connection);
         if(debug) fprintf(stderr, "aaaaaaaaassss\n");
 
         LinkedListNode *temp = runningList->head;
+        fprintf(stderr, "%ld lock 5\n", pthread_self());
+
         pthread_mutex_lock(&runningList->listMutex);
         if(debug) fprintf(stderr, "SEXSE445554\n");
         for (int j = 0; j < runningList->size; ++j) {
             if (temp->connection == request->connection) {
                 popAtIndexList(runningList, j);
+                fprintf(stderr, "j: ---- %d\n", j);
+
                 break;
             }
             temp = temp->next;
         }
         if(debug) fprintf(stderr, "SEXSE4446666\n");
+
+        fprintf(stderr, "%ld unlock 5\n", pthread_self());
+        fprintf(stderr, "\n");
+
         pthread_mutex_unlock(&runningList->listMutex);
     }
     return NULL;
 }
 
 bool canBeInserted() {
-    return waitingList->size + runningList->size < listSize;
+    pthread_mutex_lock(&waitingList->listMutex);
+    pthread_mutex_lock(&runningList->listMutex);
+    int sum = waitingList->size + runningList->size;
+    pthread_mutex_unlock(&waitingList->listMutex);
+    pthread_mutex_unlock(&runningList->listMutex);
+    return sum < listSize;
 }
 
 void blockPolicy(int connfd) { //todo: cond
@@ -139,18 +176,27 @@ void blockPolicy(int connfd) { //todo: cond
 }
 
 void dropHeadPolicy(int connfd) {//todo: cond
+    fprintf(stderr, "dh 1\n");
+
     pthread_mutex_lock(&waitingList->listMutex);
     while(waitingList->size == 0){
+        fprintf(stderr, "dh 2\n");
+
         pthread_cond_wait(&waitingList->emptyCond, &waitingList->listMutex);
     }
-    popHeadList(waitingList);
-    pthread_mutex_unlock(&waitingList->listMutex);
-    pthread_mutex_lock(&waitingList->listMutex);
-    while(!canBeInserted()){
+    fprintf(stderr, "dh 3\n");
+
+    close(popHeadList(waitingList)->connection);
+    fprintf(stderr, "dh 4\n");
+    //pthread_mutex_unlock(&waitingList->listMutex);
+    //pthread_mutex_lock(&waitingList->listMutex);
+   /* while(!canBeInserted()){
         pthread_cond_wait(&waitingList->fullCond, &waitingList->listMutex);
-    }
+    }*/
     pushList(waitingList, connfd);
+    fprintf(stderr, "dh 5\n");
     pthread_mutex_unlock(&waitingList->listMutex);
+    fprintf(stderr, "dh 6\n");
 }
 
 void dropTailPolicy(int connfd) { //todo: cond
@@ -159,11 +205,11 @@ void dropTailPolicy(int connfd) { //todo: cond
         pthread_cond_wait(&waitingList->emptyCond, &waitingList->listMutex);
     }
     popTailList(waitingList);
-    pthread_mutex_unlock(&waitingList->listMutex);
-    pthread_mutex_lock(&waitingList->listMutex);
-    while(!canBeInserted()){
+    //pthread_mutex_unlock(&waitingList->listMutex);
+    //pthread_mutex_lock(&waitingList->listMutex);
+    /*while(!canBeInserted()){
         pthread_cond_wait(&waitingList->fullCond, &waitingList->listMutex);
-    }
+    }*/
     pushList(waitingList, connfd);
     pthread_mutex_unlock(&waitingList->listMutex);
 }
@@ -173,16 +219,17 @@ void dropRandomPolicy(int connfd) {
     while(waitingList->size == 0){
         pthread_cond_wait(&waitingList->emptyCond, &waitingList->listMutex);
     }
-    int n = ceil(waitingList->size / 2);
+    //int n = ceil(waitingList->size / 2);
+    int n = (waitingList->size + 1) / 2;
     for (int i = 0; i < n; ++i) {
         int r = rand() % waitingList->size;
         popAtIndexList(waitingList, r);
     }
-    pthread_mutex_unlock(&waitingList->listMutex);
-    pthread_mutex_lock(&waitingList->listMutex);
-    while(!canBeInserted()){
+    //pthread_mutex_unlock(&waitingList->listMutex);
+    //pthread_mutex_lock(&waitingList->listMutex);
+    /*while(!canBeInserted()){
         pthread_cond_wait(&waitingList->fullCond, &waitingList->listMutex);
-    }
+    }*/
     pushList(waitingList, connfd);
     pthread_mutex_unlock(&waitingList->listMutex);
 }
@@ -195,6 +242,13 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in clientaddr;
 
     pthread_mutex_init(&mutex, NULL);
+//    pthread_mutex_init(&runningMutex, NULL);
+//    pthread_mutex_init(&waitingMutex, NULL);
+//
+//    pthread_cond_init(&waitingEmptyCond, NULL);
+//    pthread_cond_init(&waitingFullCond, NULL);
+//    pthread_cond_init(&runningEmptyCond, NULL);
+//    pthread_cond_init(&runningFullCond, NULL);
     waitingList = createList();
     runningList = createList();
 
@@ -212,6 +266,7 @@ int main(int argc, char *argv[]) {
     } else {
         exit(0);
     }
+    fprintf(stderr, "%d\n", policy);
     threads = (Stats**)malloc(sizeof(Stats*) * workers);
     for (int i = 0; i < workers; ++i) {
         if(debug) fprintf(stderr, "aaaaa\n");
@@ -228,20 +283,29 @@ int main(int argc, char *argv[]) {
         threads[i] = createStat(t);
         threads[i]->index = i;
     }
+    if(debug) fprintf(stderr, "1\n");
 
     listenfd = Open_listenfd(port);
     while (1) {
+        if(debug) fprintf(stderr, "2\n");
+
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
+
+        fprintf(stderr, "waiting: %d, running: %d\n", waitingList->size, runningList->size);
+
         if(canBeInserted()){
+            //pthread_mutex_lock(&waitingList->listMutex);
             pushList(waitingList, connfd);
+            //pthread_mutex_unlock(&waitingList->listMutex);
         } else {
             switch (policy) {
                 case SCHPOL_BLOCK:
                     blockPolicy(connfd);
                     break;
                 case SCHPOL_TAIL:
-                    dropTailPolicy(connfd);
+                    close(connfd);
+                    //dropTailPolicy(connfd);
                     break;
                 case SCHPOL_HEAD:
                     dropHeadPolicy(connfd);
@@ -251,8 +315,13 @@ int main(int argc, char *argv[]) {
                     break;
             }
         }
-        Close(connfd);
+        if(debug) fprintf(stderr, "3\n");
+
+        //Close(connfd);
+        pthread_cond_broadcast(&waitingList->emptyCond);
     }
+    if(debug) fprintf(stderr, "4\n");
+
 }
 
 

@@ -1,6 +1,9 @@
 #include "list.h"
 #include <stdlib.h>
+#include <unistd.h>
 #include "stdio.h"
+
+
 
 LinkedList* createList(){
     LinkedList* list = malloc(sizeof(*list));
@@ -37,7 +40,7 @@ void pushList(LinkedList* list, int connection){
         list->tail = node;
     }
     list->size++;
-    pthread_cond_signal(&list->emptyCond);
+    //pthread_cond_broadcast(&list->emptyCond);
 }
 
 LinkedListNode * popHeadList(LinkedList* list){
@@ -52,9 +55,10 @@ LinkedListNode * popHeadList(LinkedList* list){
     if( list->head)
         list->head->previous = NULL;
     list->size--;
-    pthread_cond_signal(&list->fullCond);
+    //close(node->connection);
+    pthread_cond_broadcast(&list->fullCond);
     return node;
-}
+}//todo: close connections
 
 LinkedListNode * popTailList(LinkedList* list){
     if(!list)
@@ -68,7 +72,7 @@ LinkedListNode * popTailList(LinkedList* list){
     if(list->tail)
         list->tail->next = NULL;
     list->size--;
-    pthread_cond_signal(&list->fullCond);
+    pthread_cond_broadcast(&list->fullCond);
     return node;
 }
 
@@ -77,11 +81,11 @@ void popAtIndexList(LinkedList* list, int index){
         return;
 
     if(index == 0){
-        popHeadList(list);
+        close(popHeadList(list)->connection);
         return;
     }
     else if(index == list->size - 1) {
-        popTailList(list);
+        close(popTailList(list)->connection);
         return;
     }
 
@@ -92,5 +96,6 @@ void popAtIndexList(LinkedList* list, int index){
     temp->previous->next = temp->next;
     temp->next->previous = temp->previous;
     list->size--;
-    pthread_cond_signal(&list->fullCond);
+    close(temp->connection);
+    pthread_cond_broadcast(&list->fullCond);
 }

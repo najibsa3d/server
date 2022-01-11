@@ -456,7 +456,6 @@ ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n)
 ssize_t Rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen) 
 {
     ssize_t rc;
-    fprintf(stderr, "aaaaarrrrrrrrrrr");
 
     if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0)
         unix_error("Rio_readlineb error");
